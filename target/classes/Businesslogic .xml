@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <sub-flow name="Businesslogic">
+        <choice doc:name="Checking input range">
+            <when expression="#[Integer.parseInt(message.inboundProperties.'http.query.params'.number1) &gt; 200 || Integer.parseInt(message.inboundProperties.'http.query.params'.number2) &gt; 200]">
+                <set-payload value="#[&quot;Please provide the input range less than 200&quot;]" doc:name="Set Payload "/>
+                <set-property propertyName="http.status" value="#[500]" doc:name="Set http Status"/>
+            </when>
+            <otherwise>
+                <message-properties-transformer scope="invocation" doc:name="Setting Variables">
+                    <add-message-property key="num1" value="#[message.inboundProperties.'http.query.params'.number1]"/>
+                    <add-message-property key="num2" value="#[message.inboundProperties.'http.query.params'.number2]"/>
+                </message-properties-transformer>
+                <dw:transform-message doc:name="Transforming to JSON">
+                    <dw:input-variable doc:sample="sample_data\map_string_string_1.dwl" variableName="num2"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{(
+	[[flowVars.num1 as :number][0] .. [flowVars.num2 as :number][0]] map {
+	('$':'ME') when $/3 is :integer,
+	('$':'MS3') when $/7 is :integer,
+	('$':'ME MS3') when $/3 is :integer and $/7 is :integer	
+	} 
+)}
+]]></dw:set-payload>
+                </dw:transform-message>
+            </otherwise>
+        </choice>
+    </sub-flow>
+</mule>
